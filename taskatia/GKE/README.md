@@ -2,12 +2,12 @@ Documentation
 
 Access Instructions
 
-Grafana Dashboard: https://grafana.yourdomain.com
+Grafana Dashboard: https://grafana.<domain>.com
 
 Username: admin
 Password: [provided separately]
-Prometheus: https://prometheus.yourdomain.com
-Sample App: https://app.yourdomain.com
+Prometheus: https://prometheus.<domain>.com
+Sample App: https://app.<domain>.com
 Maintenance Procedures
 
 Daily Tasks
