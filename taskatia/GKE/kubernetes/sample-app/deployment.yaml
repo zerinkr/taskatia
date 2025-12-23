@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: microsim-frontend
+  namespace: sample-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: microsim
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: microsim
+        component: frontend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: frontend
+        image: ghcr.io/yurishkuro/microsim:latest
+        command: [ "/app/frontend" ]
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: JAEGER_AGENT_HOST
+          value: "tempo.observability.svc.cluster.local"
+        - name: JAEGER_AGENT_PORT
+          value: "6831"
+        - name: LOG_LEVEL
+          value: "debug"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: microsim-backend
+  namespace: sample-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: microsim
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: microsim
+        component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/yurishkuro/microsim:latest
+        command: [ "/app/backend" ]
+        ports:
+        - containerPort: 8080
+        env:
+        - name: JAEGER_AGENT_HOST
+          value: "tempo.observability.svc.cluster.local"
+        - name: JAEGER_AGENT_PORT
+          value: "6831"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"

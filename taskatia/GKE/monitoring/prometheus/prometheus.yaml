@@ -1,0 +1,32 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: prometheus
+  namespace: observability
+  labels:
+    app: prometheus
+spec:
+  replicas: 2
+  serviceAccountName: prometheus
+  serviceMonitorSelector: {}
+  podMonitorSelector: {}
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 200m
+    limits:
+      memory: 2Gi
+      cpu: 500m
+  retention: 24h
+  retentionSize: "10GB"
+  ruleSelector:
+    matchLabels:
+      app: prometheus
+  alerting:
+    alertmanagers:
+    - namespace: observability
+      name: alertmanager
+      port: web
+  additionalScrapeConfigs:
+    name: additional-scrape-configs
+    key: prometheus-additional.yaml

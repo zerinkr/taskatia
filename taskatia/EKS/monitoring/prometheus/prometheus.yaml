@@ -1,0 +1,114 @@
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  replicas: 2
+  retention: 30d
+  retentionSize: "50GB"
+  enableAdminAPI: false
+
+  serviceMonitorSelector: {}
+  podMonitorSelector: {}
+
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 200m
+    limits:
+      memory: 2Gi
+      cpu: 1000m
+
+  securityContext:
+    fsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: gp3
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 50Gi
+
+  remoteWrite:
+  - url: "http://loki-distributor.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+    writeRelabelConfigs:
+    - sourceLabels: [ __name__ ]
+      regex: 'container_memory_rss|container_cpu_usage_seconds_total'
+      action: keep
+
+  additionalScrapeConfigs:
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+    - role: pod
+    relabel_configs:
+    - source_labels: [ __meta_kubernetes_pod_annotation_prometheus_io_scrape ]
+      action: keep
+      regex: true
+    - source_labels: [ __meta_kubernetes_pod_annotation_prometheus_io_path ]
+      action: replace
+      target_label: __metrics_path__
+      regex: (.+)
+    - source_labels: [ __address__, __meta_kubernetes_pod_annotation_prometheus_io_port ]
+      action: replace
+      regex: ([^:]+)(?::\d+)?;(\d+)
+      replacement: $1:$2
+      target_label: __address__
+    - action: labelmap
+      regex: __meta_kubernetes_pod_label_(.+)
+    - source_labels: [ __meta_kubernetes_namespace ]
+      action: replace
+      target_label: kubernetes_namespace
+    - source_labels: [ __meta_kubernetes_pod_name ]
+      action: replace
+      target_label: kubernetes_pod_name
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: prometheus-self
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      prometheus: prometheus
+  endpoints:
+  - port: web
+    interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: microsim
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: microsim
+  namespaceSelector:
+    matchNames:
+    - microsim
+  endpoints:
+  - port: http
+    interval: 15s
+    path: /metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  ports:
+  - name: web
+    port: 9090
+    targetPort: web
+  selector:
+    prometheus: prometheus
+  type: ClusterIP
